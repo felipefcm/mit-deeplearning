@@ -4,3 +4,4 @@ torch==2.0.1
 torchvision==0.15.2
 tensorboard==2.14.0
 torch-tb-profiler==0.4.1
+regex==2023.8.8
