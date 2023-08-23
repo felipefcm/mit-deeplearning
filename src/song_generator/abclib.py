@@ -11,12 +11,8 @@ def save_song_to_abc(song, filename='tmp'):
 
 
 def abc2wav(abc_file):
-    cmd = f'./src/song_generator/bin/abc2wav.sh {abc_file}'
+    cmd = f'./bin/abc2wav.sh {abc_file}'
     return os.system(cmd)
-
-
-# def play_wav(wav_file):
-#     return Audio(wav_file)
 
 
 def play_song(song):
