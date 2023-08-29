@@ -12,8 +12,6 @@ from song_generator.network import SongNetwork
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-writer = SummaryWriter()
-
 # dataset = songdataset.SongDataset('./data/irish.abc')
 
 # dataloader = DataLoader(
@@ -38,16 +36,6 @@ def vectorise_string(string: str):
 
 vectorised_songs = vectorise_string(songs_joined)
 
-net = SongNetwork(
-    rnn_units=1024,
-    vocab_size=len(vocab),
-    embedding_dim=256
-)
-
-net = net.to(device)
-
-optimiser = torch.optim.Adam(net.parameters(), lr=0.01)
-
 
 def take_predicted_sample(output):
     categorical = torch.distributions.Categorical(logits=output)
@@ -63,12 +51,45 @@ def print_predicted_sample(chars, input):
     print()
 
 
-num_epochs = 450
+rnn_units = 2048
+embedding_dim = 256
+lr = 0.005
+num_epochs = 1000
+seq_length = 500
+batch_size = 64
+
+writer = SummaryWriter(
+    log_dir=f'runs/lr{lr}_bs{batch_size}_sl{seq_length}_rnn{rnn_units}'
+)
+
+net = SongNetwork(
+    rnn_units=rnn_units,
+    vocab_size=len(vocab),
+    embedding_dim=embedding_dim
+)
+
+net = net.to(device)
+optimiser = torch.optim.Adam(net.parameters(), lr=lr)
+lr_scheduler = torch.optim.lr_scheduler.StepLR(
+    optimiser, step_size=100, gamma=0.8
+)
+
+hparam_dict = {
+    'epochs': num_epochs,
+    'lr': lr,
+    'rnn_units': rnn_units,
+    'embedding_dim': embedding_dim,
+    'batch_size': batch_size,
+    'seq_length': seq_length,
+}
+
+losses = []
+
 for epoch in range(num_epochs):
     x, y = songdataset.get_batch(
         vectorised_songs,
-        seq_length=400,
-        batch_size=42
+        seq_length=seq_length,
+        batch_size=batch_size
     )
 
     x = x.to(device)
@@ -80,20 +101,27 @@ for epoch in range(num_epochs):
     output_p = output.permute(0, 2, 1)
     loss = F.nll_loss(output_p, y)
     print(f'epoch {epoch} loss', loss.item())
+
     writer.add_scalar('Loss/mean', loss.item(), epoch)
+    losses.append(loss.item())
 
     optimiser.zero_grad()
-
     loss.backward()
     optimiser.step()
+    lr_scheduler.step()
 
-    if epoch % 20 == 0 or epoch == num_epochs - 1:
+    if epoch % 100 == 0 or epoch == num_epochs - 1:
         net.eval()
         with torch.no_grad():
             chars = take_predicted_sample(output[0])
             writer.add_text('Predicted', f'loss={loss.item()}\n{chars}', epoch)
 
-        time.sleep(8)
+    if (epoch + 1) % 100 == 0:
+        time.sleep(2)
 
+writer.add_hparams(
+    hparam_dict,
+    {'hparam/loss': np.min(losses), 'hparam/nloss': np.min(losses) / rnn_units}
+)
 
 writer.close()

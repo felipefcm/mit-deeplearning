@@ -22,18 +22,19 @@ class SongNetwork(nn.Module):
     def forward(self, x):
         embeddings = self.embedding(x)
 
-        flattened = embeddings.view(
-            1,
-            embeddings.shape[0] * embeddings.shape[1],
-            embeddings.shape[2]
-        )
+        # flattened = embeddings.view(
+        #     1,
+        #     embeddings.shape[0] * embeddings.shape[1],
+        #     embeddings.shape[2]
+        # )
 
         # y, self.h = self.lstm(flattened, None if self.h == None else (
         #     self.h[0].detach(), self.h[1].detach()))
-        y, self.h = self.lstm(flattened)
+        # y, self.h = self.lstm(flattened)
 
-        y = y.view(embeddings.shape[0], embeddings.shape[1], self.rnn_units)
+        # y = y.view(embeddings.shape[0], embeddings.shape[1], self.rnn_units)
 
+        y, _ = self.lstm(embeddings)
         y = self.l1(y)
 
         y = F.log_softmax(y, dim=2)
