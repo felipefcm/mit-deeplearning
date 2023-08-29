@@ -59,7 +59,7 @@ optim = torch.optim.SGD(model.parameters(), lr=0.001)
 
 dataset = TensorDataset()
 
-for epoch in range(1000):
+for epoch in range(10):
     total_loss = 0
     for context, target in ngrams:
         context_idx = torch.tensor([word2idx[w] for w in context])
