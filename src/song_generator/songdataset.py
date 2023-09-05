@@ -1,19 +1,6 @@
 import numpy as np
 import regex as re
 import torch
-from torch.utils.data import Dataset
-
-
-class SongDataset(Dataset):
-    def __init__(self, dataset_path: str):
-        super().__init__()
-        self.songs = load_training_data(dataset_path)
-
-    def __getitem__(self, index):
-        return self.songs[index]
-
-    def __len__(self):
-        return len(self.songs)
 
 
 def load_training_data(filepath: str):

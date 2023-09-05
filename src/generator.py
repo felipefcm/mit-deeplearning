@@ -12,12 +12,6 @@ from song_generator.network import SongNetwork
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-# dataset = songdataset.SongDataset('./data/irish.abc')
-
-# dataloader = DataLoader(
-#     dataset=dataset
-# )
-
 songs = songdataset.load_training_data('./data/irish.abc')
 print('loaded')
 
@@ -123,5 +117,6 @@ writer.add_hparams(
     hparam_dict,
     {'hparam/loss': np.min(losses), 'hparam/nloss': np.min(losses) / rnn_units}
 )
+
 
 writer.close()
