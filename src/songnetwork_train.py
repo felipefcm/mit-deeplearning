@@ -1,64 +1,35 @@
 import numpy as np
-import torch
 import time
-from torch.utils.data import DataLoader
+
+import torch
 import torch.nn.functional as F
 from torch.utils.tensorboard import SummaryWriter
 
-import song_generator.abclib as abclib
 import song_generator.songdataset as songdataset
-
+import song_generator.vocab as songvocab
 from song_generator.network import SongNetwork
 
 device = 'cuda' if torch.cuda.is_available() else 'cpu'
 
-songs = songdataset.load_training_data('./data/irish.abc')
-print('loaded')
+should_log = False
 
-songs_joined = '\n\n'.join(songs)
-vocab = sorted(set(songs_joined))
-
-char2idx = {i: c for c, i in enumerate(vocab)}
-idx2char = np.array(vocab)
-
-
-def vectorise_string(string: str):
-    return [
-        char2idx.get(char) for char in string
-    ]
-
-
-vectorised_songs = vectorise_string(songs_joined)
-
-
-def take_predicted_sample(output):
-    categorical = torch.distributions.Categorical(logits=output)
-    sample = categorical.sample()
-    chars = ''.join([idx2char[idx] for idx in sample])
-    return chars
-
-
-def print_predicted_sample(chars, input):
-    print()
-    print('input', ''.join([idx2char[idx] for idx in input]))
-    print('predict', chars)
-    print()
-
-
-rnn_units = 2048
+rnn_units = 1024
 embedding_dim = 256
 lr = 0.005
 num_epochs = 1000
 seq_length = 500
 batch_size = 64
 
-writer = SummaryWriter(
-    log_dir=f'runs/lr{lr}_bs{batch_size}_sl{seq_length}_rnn{rnn_units}'
-)
+writer = None
+
+if should_log:
+    writer = SummaryWriter(
+        log_dir=f'runs/lr{lr}_bs{batch_size}_sl{seq_length}_rnn{rnn_units}'
+    )
 
 net = SongNetwork(
     rnn_units=rnn_units,
-    vocab_size=len(vocab),
+    vocab_size=songvocab.vocab_size,
     embedding_dim=embedding_dim
 )
 
@@ -81,7 +52,7 @@ losses = []
 
 for epoch in range(num_epochs):
     x, y = songdataset.get_batch(
-        vectorised_songs,
+        songvocab.vectorised_songs,
         seq_length=seq_length,
         batch_size=batch_size
     )
@@ -96,7 +67,9 @@ for epoch in range(num_epochs):
     loss = F.nll_loss(output_p, y)
     print(f'epoch {epoch} loss', loss.item())
 
-    writer.add_scalar('Loss/mean', loss.item(), epoch)
+    if writer:
+        writer.add_scalar('Loss/mean', loss.item(), epoch)
+
     losses.append(loss.item())
 
     optimiser.zero_grad()
@@ -107,16 +80,26 @@ for epoch in range(num_epochs):
     if epoch % 100 == 0 or epoch == num_epochs - 1:
         net.eval()
         with torch.no_grad():
-            chars = take_predicted_sample(output[0])
-            writer.add_text('Predicted', f'loss={loss.item()}\n{chars}', epoch)
+            chars = songvocab.take_predicted_sample(output[0])
+            if writer:
+                writer.add_text(
+                    'Predicted', f'loss={loss.item()}\n{chars}', epoch
+                )
 
     if (epoch + 1) % 100 == 0:
         time.sleep(2)
 
-writer.add_hparams(
-    hparam_dict,
-    {'hparam/loss': np.min(losses), 'hparam/nloss': np.min(losses) / rnn_units}
+if writer:
+    writer.add_hparams(
+        hparam_dict,
+        {'hparam/loss': np.min(losses),
+         'hparam/nloss': np.min(losses) / rnn_units}
+    )
+
+torch.save(
+    net.state_dict(),
+    f'checkpoints/lr{lr}_bs{batch_size}_sl{seq_length}_rnn{rnn_units}'
 )
 
-
-writer.close()
+if writer:
+    writer.close()

@@ -17,12 +17,15 @@ class SongNetwork(nn.Module):
             batch_first=True,
         )
 
+        self.dropout = nn.Dropout(0.5)
+
         self.l1 = nn.Linear(rnn_units, vocab_size)
 
     def forward(self, x):
         embeddings = self.embedding(x)
 
         y, _ = self.lstm(embeddings)
+        y = self.dropout(y)
         y = self.l1(y)
 
         y = F.log_softmax(y, dim=2)
